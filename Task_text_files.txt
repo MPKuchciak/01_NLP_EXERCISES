@@ -1,0 +1,6 @@
+
+The folder "text_files" contains text files written on various topics by two persons. Interests of person 1 and person 2 are very distinct. Note that the file title doesn't necessarily reflect its content.
+Use a chosen method of clustering in order to find into which categories/concepts/topics belong these files. Can you say anything relevant about types of these texts or, maybe, about their authors?
+
+
+

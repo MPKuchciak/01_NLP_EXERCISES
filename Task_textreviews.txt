@@ -1,0 +1,3 @@
+
+The dataset textreview.csv consists of 2000 text reviews concerning products of more than one distinct industry branches.
+Use a chosen method of clustering to find and name these main industry branches.
