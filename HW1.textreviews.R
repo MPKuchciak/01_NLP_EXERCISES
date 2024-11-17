@@ -130,7 +130,7 @@ dtm_standard <- CreateDtm(
   stem_lemma_function = NULL
 )
 
-# 1.3. Standard Preprocessing
+# 1.3. Standard Preprocessing + lemmatization
 # A DTM with common preprocessing:
 #   - Convert text to lowercase
 #   - Remove punctuation and numbers
@@ -138,22 +138,35 @@ dtm_standard <- CreateDtm(
 dtm_lemmatization_stand <- CreateDtm(doc_vec = doc_vec, # character vector of documents
                  doc_names = doc_names, # document names
                  ngram_window = c(1, 3), # n-gram window for unigrams and bigrams
-                 stopword_vec = c(stopwords::stopwords("en")), # English stopwords
+                 stopword_vec = stopword_vec, # English stopwords
                  lower = TRUE, # Convert to lowercase
-                 remove_punctuation = FALSE, # Remove punctuation
-                 remove_numbers = FALSE, # Remove numbers
+                 remove_punctuation = TRUE, # Remove punctuation
+                 remove_numbers = TRUE, # Remove numbers
                  verbose = FALSE, # Turn off progress bar
                  cpus = 4, # Use X CPUs 
-                 stem_lemma_function = NULL) #lemma_func
+                 stem_lemma_function = stemmed_func) #lemma_func
 
 # 1.4. Standard Preprocessing
 # A DTM with common preprocessing:
 #   - Convert text to lowercase
 #   - Remove punctuation and numbers
 #   - Apply stopwords
+dtm_stemming_stand <- CreateDtm(doc_vec = doc_vec, # character vector of documents
+                                     doc_names = doc_names, # document names
+                                     ngram_window = c(1, 3), # n-gram window for unigrams and bigrams
+                                     stopword_vec = stopword_vec, # English stopwords
+                                     lower = TRUE, # Convert to lowercase
+                                     remove_punctuation = TRUE, # Remove punctuation
+                                     remove_numbers = TRUE, # Remove numbers
+                                     verbose = FALSE, # Turn off progress bar
+                                     cpus = 4, # Use X CPUs 
+                                     stem_lemma_function = stemmed_func) #lemma_func
+
+
 sort(colSums(as.matrix(dtm_baseline)), decreasing = TRUE)
 sort(colSums(as.matrix(dtm_stemmed)), decreasing = TRUE)
-
+sort(colSums(as.matrix(dtm_baseline)), decreasing = TRUE)
+sort(colSums(as.matrix(dtm_stemmed)), decreasing = TRUE)
 ################################################################################
 ###### TF-IDF + other calculations
 ################################################################################
