@@ -1,4 +1,5 @@
 
+# Exercise text
 # The dataset textreview.csv consists of 2000 text reviews concerning products of more than one distinct industry branches.
 # Use a chosen method of clustering to find and name these main industry branches.
 
@@ -6,7 +7,7 @@
 ####### LOADING LIBRARIES
 ################################################################################
 
-# Load libraries
+# Load libraries - some libraries may be loaded later on 
 library(textmineR)
 library(stopwords)
 library(wordcloud)
@@ -17,11 +18,14 @@ library(wordcloud)
 ####### LOADING FILES
 ################################################################################
 
-# Set working directory and load data
+data_folder <- "TASK_02_DATA"
+
+# Set working directory and load data eventuially use Rproj
 getwd()
+#setwd()
 
 # Load and preprocess data
-reviews <- read.csv("textreviews.csv", stringsAsFactors = FALSE)
+reviews <- read.csv(file.path("00_DATA", data_folder, "textreviews.csv"), stringsAsFactors = FALSE)
 
 # Extract the text column and create document names
 doc_vec <- reviews$text
@@ -38,53 +42,37 @@ str(doc_names)
 ################################################################################
 
 length(doc_vec) 
-str(doc_vec)
 length(doc_names) 
-str(doc_names)
 
 sum(is.na(doc_vec))         # Should be 0
-# Error in nchar(doc_vec) : invalid multibyte string, element 1298
 sum(nchar(doc_vec) == 0)    # Should be 0
-doc_vec[nchar(doc_vec) == 0]
+# BUT, # Error in nchar(doc_vec) : invalid multibyte string, element 1298
 
-#we will go through few steps
+# we will go through few steps
 # Step 1: Convert with a placeholder for non-UTF-8 characters
 doc_vec <- iconv(doc_vec, from = "latin1", to = "UTF-8", sub = "byte")
 
 sum(nchar(doc_vec) == 0)    # Should be 0
 doc_vec[nchar(doc_vec) == 0]
+# now we are left with empty strings wchich do not help us later on within clustering or using models so we will remove them
 
-# Step 2: Verify if there are any empty or problematic entries left
+# Step 2: Verify empty or problematic entries left (location of these rows - indexes)
 empty_docs <- which(nchar(doc_vec) == 0)
 print(empty_docs)
 
-
-# Step 3: Identify non-empty entries
+# Step 3: Identify non-empty entries and their removal from both doc_names and doc_vec
 non_empty_docs <- nchar(doc_vec) > 0
-number(nchar(doc_vec) > 0)
-
-# Subset to only non-empty entries
 doc_vec <- doc_vec[non_empty_docs]
 doc_names <- doc_names[non_empty_docs]
 
-# Count the number of non-empty entries
-count_non_empty <- sum(nchar(doc_vec) > 0)
-print(count_non_empty)
-
-# Step 4: Verify; Check if there are still empty documents
-empty_docs <- which(nchar(doc_vec) == 0)
-print(empty_docs)
-
+# final check
 sum(is.na(doc_vec))         # Should be 0
-sum(nchar(doc_vec) == 0)
-
-doc_vec
+sum(nchar(doc_vec) == 0)    # Should be 0
+# and we are done, we will proceed to set up parameters of dtm 
 
 # Update stopwords and clean text
 stopword_vec <- c(stopwords::stopwords("en"), stopwords::stopwords(source = "smart"))
-doc_vec <- tolower(doc_vec)  # Convert text to lowercase
-#doc_vec <- gsub("[^a-z\\s]", "", doc_vec)
-
+stopword_vec <- unique(stopword_vec)
 
 
 ################################################################################
