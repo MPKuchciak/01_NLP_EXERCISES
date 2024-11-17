@@ -168,25 +168,28 @@ dtm_stemming_stand <- CreateDtm(doc_vec = doc_vec, # character vector of documen
 
 head(sort(colSums(as.matrix(dtm_standard)), decreasing = TRUE), 10)
 head(sort(colSums(as.matrix(dtm_baseline)), decreasing = TRUE, ), 10)
-head(sort(colSums(as.matrix(dtm_lemmatization_stand)), decreasing = TRUE), 10)
+head(sort(colSums(as.matrix(dtm_lemmatization_stand)), decreasing = TRUE), 10) # this one is choosen
 head(sort(colSums(as.matrix(dtm_stemming_stand)), decreasing = TRUE), 10)
 
-# I will go with 3rd aproach as It does not take so long and lemmatization is more 
+# I will go with 3rd aproach as It does not take so long and its more accurate and precise because it considers context and part of speech.
+
+
+
 ################################################################################
 ###### TF-IDF + other calculations
 ################################################################################
 
 # 2. Create a TF-IDF matrix
+dtm <- dtm_lemmatization_stand
+
 tf_mat <- TermDocFreq(dtm)
 
 # Compute TF-IDF scores
 tfidf <- t(dtm[, tf_mat$term]) * tf_mat$idf
 tfidf <- t(tfidf)
 
-#head(tfidf)
-
 str(dtm)
-str(tfidf) #bugs? -> sparse matrix?
+str(tfidf)
 
 # Check the cleaned text for the first few reviews
 head(doc_vec, 10)
