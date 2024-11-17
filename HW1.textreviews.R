@@ -79,28 +79,108 @@ stopword_vec <- unique(stopword_vec)
 ###### DTM
 ################################################################################
 
-# 1. DTM Creation
-dtm <- CreateDtm(doc_vec = doc_vec,
-                 doc_names = doc_names,
-                 ngram_window = c(1, 2),
-                 stopword_vec = stopword_vec, 
-                 lower = TRUE,
-                 remove_punctuation = TRUE,
-                 remove_numbers = TRUE,
-                 cpus = 4)
+# Load necessary libraries
+library(textstem)  # For lemmatization
+library(SnowballC) # For stemming
 
-# 2. Apply TF-IDF weighting
+# Apply lemmatization
+lemma_func <- function(words) {
+  textstem::lemmatize_words(words)  # lemmatize each word in the input vector
+}
+  
+# Apply stemming
+stemmed_func <- function(words) {
+  SnowballC::wordStem(words, language = "en")  # lemmatize each word in the input vector
+}
+
+# 1. DTM Creation - Create the document-term matrix (DTM)
+
+# 1.1. Variant of DTM without punctuation, removal of numbers, no stemming or lematization performed, no lower letters
+dtm <- CreateDtm(doc_vec = doc_vec, # character vector of documents
+                 doc_names = doc_names, # document names
+                 ngram_window = c(1, 2), # n-gram window for unigrams and bigrams
+                 stopword_vec = stopword_vec, # English stopwords
+                 lower = TRUE, # Convert to lowercase
+                 remove_punctuation = FALSE, # Remove punctuation
+                 remove_numbers = FALSE, # Remove numbers
+                 verbose = FALSE, # Turn off progress bar
+                 cpus = 4, # Use X CPUs 
+                 stem_lemma_function = NULL) #lemma_func
+
+dtm <- CreateDtm(doc_vec = doc_vec, # character vector of documents
+                 doc_names = doc_names, # document names
+                 ngram_window = c(1, 3), # n-gram window for unigrams and bigrams
+                 stopword_vec = c(stopwords::stopwords("en")), # English stopwords
+                 lower = TRUE, # Convert to lowercase
+                 remove_punctuation = FALSE, # Remove punctuation
+                 remove_numbers = FALSE, # Remove numbers
+                 verbose = FALSE, # Turn off progress bar
+                 cpus = 4, # Use X CPUs 
+                 stem_lemma_function = NULL) #lemma_func
+
+dtm <- CreateDtm(doc_vec = doc_vec, # character vector of documents
+                 doc_names = doc_names, # document names
+                 ngram_window = c(1, 3), # n-gram window for unigrams and bigrams
+                 stopword_vec = c(stopwords::stopwords("en")), # English stopwords
+                 lower = TRUE, # Convert to lowercase
+                 remove_punctuation = FALSE, # Remove punctuation
+                 remove_numbers = FALSE, # Remove numbers
+                 verbose = FALSE, # Turn off progress bar
+                 cpus = 4, # Use X CPUs 
+                 stem_lemma_function = NULL) #lemma_func
+
+sort(colSums(as.matrix(dtm_lemmatized)), decreasing = TRUE)
+sort(colSums(as.matrix(dtm_stemmed)), decreasing = TRUE)
+
+################################################################################
+###### TF-IDF + other calculations
+################################################################################
+
+# 2. Create a TF-IDF matrix
 tf_mat <- TermDocFreq(dtm)
+
+# Compute TF-IDF scores
 tfidf <- t(dtm[, tf_mat$term]) * tf_mat$idf
 tfidf <- t(tfidf)
 
-head(tfidf)
+#head(tfidf)
 
 str(dtm)
 str(tfidf) #bugs? -> sparse matrix?
 
 # Check the cleaned text for the first few reviews
 head(doc_vec, 10)
+
+# Cosine similarity and distance
+csim <- tfidf / sqrt(rowSums(tfidf * tfidf))  # Normalizing the TF-IDF matrix
+csim <- csim %*% t(csim)  # Calculate cosine similarity matrix
+cdist <- as.dist(1 - csim)  # Convert cosine similarity to distance
+
+
+anyNA(cdist)        # Checks for NA values
+any(is.nan(cdist))  # Checks for NaN values
+any(is.infinite(cdist))  # Checks for Inf values
+
+# Identify the indices of NA and NaN values in cdist
+na_indices <- which(is.na(cdist), arr.ind = TRUE)
+nan_indices <- which(is.nan(cdist), arr.ind = TRUE)
+
+# Display the rows and columns containing NA values
+na_indices
+nan_indices
+# As we removed problematic rows earlier we do not have to perform any additional modifications like adding small number
+
+#csim <- tfidf / sqrt(rowSums(tfidf * tfidf) + 1e-8)  # Add a small constant to avoid division by zero
+#csim <- csim %*% t(csim)  # Calculate cosine similarity matrix
+#cdist <- as.dist(1 - csim)  # Convert cosine similarity to distance
+
+
+
+# Perform hierarchical clustering (Ward's method)
+hc <- hclust(cdist, "ward.D")
+
+# Cut the dendrogram to get a desired number of clusters
+clustering <- cutree(hc, 3)  # Adjust the number of clusters (5 here for example)
 
 ################################################################################
 ###### FURTHER PROCESSING
