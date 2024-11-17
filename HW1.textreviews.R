@@ -93,19 +93,20 @@ stemmed_func <- function(words) {
   SnowballC::wordStem(words, language = "en")  # lemmatize each word in the input vector
 }
 
+################################################################################
 # 1. DTM Creation - Create the document-term matrix (DTM)
 
 # 1.1. No Preprocessing (Baseline)
-#A DTM with raw text:
-# - No punctuation removal
-# - No number removal
-# - No stemming or lemmatization
-# - case-sensitive
+# A DTM with raw text:
+#   - No punctuation removal
+#   - No number removal
+#   - No stemming or lemmatization
+#   - case-sensitive
 dtm_baseline <- CreateDtm(doc_vec = doc_vec, # character vector of documents
                  doc_names = doc_names, # document names
                  ngram_window = c(1, 2), # n-gram window for unigrams and bigrams
                  stopword_vec = stopword_vec, # English stopwords
-                 lower = TRUE, # Convert to lowercase
+                 lower = FALSE, # Convert to lowercase
                  remove_punctuation = FALSE, # Remove punctuation
                  remove_numbers = FALSE, # Remove numbers
                  verbose = FALSE, # Turn off progress bar
@@ -135,6 +136,7 @@ dtm_standard <- CreateDtm(
 #   - Convert text to lowercase
 #   - Remove punctuation and numbers
 #   - Apply stopwords
+#   - Apply lemmatization
 dtm_lemmatization_stand <- CreateDtm(doc_vec = doc_vec, # character vector of documents
                  doc_names = doc_names, # document names
                  ngram_window = c(1, 3), # n-gram window for unigrams and bigrams
@@ -144,13 +146,14 @@ dtm_lemmatization_stand <- CreateDtm(doc_vec = doc_vec, # character vector of do
                  remove_numbers = TRUE, # Remove numbers
                  verbose = FALSE, # Turn off progress bar
                  cpus = 4, # Use X CPUs 
-                 stem_lemma_function = stemmed_func) #lemma_func
+                 stem_lemma_function = lemma_func) #lemma_func
 
 # 1.4. Standard Preprocessing
 # A DTM with common preprocessing:
 #   - Convert text to lowercase
 #   - Remove punctuation and numbers
 #   - Apply stopwords
+#   - Apply stemming
 dtm_stemming_stand <- CreateDtm(doc_vec = doc_vec, # character vector of documents
                                      doc_names = doc_names, # document names
                                      ngram_window = c(1, 3), # n-gram window for unigrams and bigrams
@@ -163,10 +166,12 @@ dtm_stemming_stand <- CreateDtm(doc_vec = doc_vec, # character vector of documen
                                      stem_lemma_function = stemmed_func) #lemma_func
 
 
-sort(colSums(as.matrix(dtm_baseline)), decreasing = TRUE)
-sort(colSums(as.matrix(dtm_stemmed)), decreasing = TRUE)
-sort(colSums(as.matrix(dtm_baseline)), decreasing = TRUE)
-sort(colSums(as.matrix(dtm_stemmed)), decreasing = TRUE)
+head(sort(colSums(as.matrix(dtm_standard)), decreasing = TRUE), 10)
+head(sort(colSums(as.matrix(dtm_baseline)), decreasing = TRUE, ), 10)
+head(sort(colSums(as.matrix(dtm_lemmatization_stand)), decreasing = TRUE), 10)
+head(sort(colSums(as.matrix(dtm_stemming_stand)), decreasing = TRUE), 10)
+
+# I will go with 3rd aproach as It does not take so long and lemmatization is more 
 ################################################################################
 ###### TF-IDF + other calculations
 ################################################################################
