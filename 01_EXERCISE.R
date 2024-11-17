@@ -198,7 +198,6 @@ csim <- tfidf / sqrt(rowSums(tfidf * tfidf))  # Normalizing the TF-IDF matrix
 csim <- csim %*% t(csim)  # Calculate cosine similarity matrix
 cdist <- as.dist(1 - csim)  # Convert cosine similarity to distance
 
-
 anyNA(cdist)        # Checks for NA values
 any(is.nan(cdist))  # Checks for NaN values
 any(is.infinite(cdist))  # Checks for Inf values
