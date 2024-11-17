@@ -146,11 +146,149 @@ head(sort(colSums(as.matrix(dtm_stemming_stand)), decreasing = TRUE), 10)
 tf_mat <- TermDocFreq(dtm)
 tfidf <- t(dtm[, tf_mat$term]) * tf_mat$idf
 tfidf <- t(tfidf)
+
+csim <- tfidf / sqrt(rowSums(tfidf * tfidf))
+
 csim <- tfidf / sqrt(rowSums(tfidf * tfidf) + 1e-8) # Add a small constant to avoid division by zero
 csim <- csim %*% t(csim)
 cdist <- as.dist(1 - csim)
 
 
+
+################################################################################
+####### ENTRY TO CLUSTERING
+################################################################################
+
+# Perform hierarchical clustering
+hc <- hclust(cdist, "ward.D")
+
+# Determine optimal number of clusters (k) visually using a dendrogram -> impossible from this kind of data
+plot(hc)  # Review the plot and decide the number of clusters
+
+
+# 1. Elbow Method Using Sum of Squared Distances
+# Compute WSS for k = 1 to 10
+wss <- sapply(1:10, function(k) {
+  cluster <- cutree(hc, k)  # Cut dendrogram into k clusters
+  sum(sapply(unique(cluster), function(c) {
+    cluster_points <- tfidf[cluster == c, ]
+    cluster_center <- colMeans(cluster_points)
+    sum(rowSums((cluster_points - cluster_center)^2))
+  }))
+})
+
+# Plot WSS
+plot(1:10, wss, type = "b", xlab = "Number of Clusters (k)", ylab = "Within-Cluster Sum of Squares")
+
+#2. Silhouette Analysis
+silhouette_scores <- sapply(2:10, function(k) {
+  cluster <- cutree(hc, k)
+  mean(silhouette(cluster, cdist)[, 3])  # Average silhouette width
+})
+
+# Plot silhouette scores
+plot(2:10, silhouette_scores, type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
+
+# 3.
+library(cluster)
+set.seed(42)
+
+gap_stat <- clusGap(as.matrix(tfidf), FUN = hclust, K.max = 10, B = 50)
+plot(gap_stat, main = "Gap Statistic")
+optimal_k <- maxSE(gap_stat$Tab[, "gap"], gap_stat$Tab[, "SE.sim"])
+print(optimal_k)  # Optimal number of clusters
+
+#4. 
+set.seed(42)
+k <- 3  # Replace with the desired number of clusters or use methods above to determine
+kmeans_result <- kmeans(tfidf, centers = k, nstart = 25)
+
+# Assign cluster labels
+clusters <- kmeans_result$cluster
+
+# Check cluster sizes
+table(clusters)
+
+
+
+
+#5.
+library(ggplot2)
+
+# Reduce dimensions using PCA
+pca_result <- prcomp(tfidf, center = TRUE, scale. = TRUE)
+pca_data <- data.frame(pca_result$x[, 1:2])  # Use first 2 principal components
+
+# Perform clustering on reduced data
+k <- 3  # Number of clusters
+kmeans_result <- kmeans(pca_data, centers = k, nstart = 25)
+
+# Visualize clusters
+pca_data$cluster <- factor(kmeans_result$cluster)
+ggplot(pca_data, aes(x = PC1, y = PC2, color = cluster)) + 
+  geom_point() + 
+  theme_minimal() + 
+  labs(title = "Clusters Visualized on PCA Reduced Data")
+
+
+
+
+#6.
+set.seed(42)
+
+# Determine the optimal k using the elbow method
+wss <- sapply(1:10, function(k) {
+  kmeans(tfidf, centers = k, nstart = 25)$tot.withinss
+})
+
+plot(1:10, wss, type = "b", xlab = "Number of Clusters", ylab = "Total Within-Cluster Sum of Squares")
+
+# Perform k-means with chosen k
+k <- 3  # Replace with optimal k
+kmeans_result <- kmeans(tfidf, centers = k, nstart = 25)
+clusters <- kmeans_result$cluster
+
+
+#7.
+
+library(dbscan)
+
+# Perform DBSCAN (eps and minPts should be tuned based on the dataset)
+dbscan_result <- dbscan(as.matrix(tfidf), eps = 0.5, minPts = 10)
+
+# Assign clusters
+clusters <- dbscan_result$cluster
+table(clusters)  # Check cluster sizes
+
+
+#8.
+
+library(mclust)
+
+# Fit Gaussian mixture model
+mclust_result <- Mclust(as.matrix(tfidf))
+
+# Optimal number of clusters
+optimal_k <- mclust_result$G
+
+# Cluster assignments
+clusters <- mclust_result$classification
+
+
+#9.
+library(cluster)
+
+agnes_result <- agnes(as.matrix(tfidf), method = "ward")
+plot(agnes_result)
+
+# Cut into clusters
+clusters <- cutree(as.hclust(agnes_result), k = 3)
+
+
+k <- 3    # Replace with the desired number of clusters
+
+# Cut dendrogram into k clusters
+clusters <- cutree(hc, k)
 ################################################################################
 ###### TF-IDF + other calculations
 ################################################################################
