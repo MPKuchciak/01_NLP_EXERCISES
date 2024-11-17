@@ -10,7 +10,10 @@
 # Load libraries - some libraries may be loaded later on 
 library(textmineR)
 library(stopwords)
-library(wordcloud)
+library(cluster)
+
+library(textstem)  # For lemmatization
+library(SnowballC) # For stemming
 
 
 
@@ -18,70 +21,31 @@ library(wordcloud)
 ####### LOADING FILES
 ################################################################################
 
+# Load data
 data_folder <- "TASK_02_DATA"
-
-# Set working directory and load data eventuially use Rproj
-getwd()
-#setwd()
-
-# Load and preprocess data
 reviews <- read.csv(file.path("00_DATA", data_folder, "textreviews.csv"), stringsAsFactors = FALSE)
 
-# Extract the text column and create document names
-doc_vec <- reviews$text
+# Extract text and create document names
+doc_vec <- iconv(reviews$text, from = "latin1", to = "UTF-8", sub = "byte")
 doc_names <- paste0("review_", reviews$id)
 
-# Verify the setup
+# Remove empty "documents" ; reviews
+non_empty_docs <- nchar(doc_vec) > 0
+doc_vec <- doc_vec[non_empty_docs]
+doc_names <- doc_names[non_empty_docs]
+
+# Stopword setup
+stopword_vec <- unique(c(stopwords::stopwords("en"), stopwords::stopwords(source = "smart")))
+
+# Verify the setup; both vectors should be of the same number of elements
 str(doc_vec)
 str(doc_names)
 
 
 
 ################################################################################
-###### FURTHER PROCESSING
-################################################################################
-
-length(doc_vec) 
-length(doc_names) 
-
-sum(is.na(doc_vec))         # Should be 0
-sum(nchar(doc_vec) == 0)    # Should be 0
-# BUT, # Error in nchar(doc_vec) : invalid multibyte string, element 1298
-
-# we will go through few steps
-# Step 1: Convert with a placeholder for non-UTF-8 characters
-doc_vec <- iconv(doc_vec, from = "latin1", to = "UTF-8", sub = "byte")
-
-sum(nchar(doc_vec) == 0)    # Should be 0
-doc_vec[nchar(doc_vec) == 0]
-# now we are left with empty strings wchich do not help us later on within clustering or using models so we will remove them
-
-# Step 2: Verify empty or problematic entries left (location of these rows - indexes)
-empty_docs <- which(nchar(doc_vec) == 0)
-print(empty_docs)
-
-# Step 3: Identify non-empty entries and their removal from both doc_names and doc_vec
-non_empty_docs <- nchar(doc_vec) > 0
-doc_vec <- doc_vec[non_empty_docs]
-doc_names <- doc_names[non_empty_docs]
-
-# final check
-sum(is.na(doc_vec))         # Should be 0
-sum(nchar(doc_vec) == 0)    # Should be 0
-# and we are done, we will proceed to set up parameters of dtm 
-
-# Update stopwords and clean text
-stopword_vec <- c(stopwords::stopwords("en"), stopwords::stopwords(source = "smart"))
-stopword_vec <- unique(stopword_vec)
-
-
-################################################################################
 ###### DTM
 ################################################################################
-
-# Load necessary libraries
-library(textstem)  # For lemmatization
-library(SnowballC) # For stemming
 
 # Apply lemmatization
 lemma_func <- function(words) {
@@ -172,6 +136,19 @@ head(sort(colSums(as.matrix(dtm_stemming_stand)), decreasing = TRUE), 10)
 
 # I will go with 3rd aproach as It does not take so long and its more accurate and precise because it considers context and part of speech.
 
+
+
+################################################################################
+####### COSINE SIMILARITY AND DISTANCE MATRIX
+################################################################################
+
+# Compute TF-IDF and cosine similarity
+tf_mat <- TermDocFreq(dtm)
+tfidf <- t(dtm[, tf_mat$term]) * tf_mat$idf
+tfidf <- t(tfidf)
+csim <- tfidf / sqrt(rowSums(tfidf * tfidf) + 1e-8) # Add a small constant to avoid division by zero
+csim <- csim %*% t(csim)
+cdist <- as.dist(1 - csim)
 
 
 ################################################################################
