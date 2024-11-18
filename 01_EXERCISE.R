@@ -44,15 +44,15 @@ str(doc_names)
 
 
 ################################################################################
-###### DTM
+###### Functions for DTM
 ################################################################################
 
-# Apply lemmatization
+# Apply lemmatization - function
 lemma_func <- function(words) {
   textstem::lemmatize_words(words)  # lemmatize each word in the input vector
 }
 
-# Apply stemming
+# Apply stemming - function
 stemmed_func <- function(words) {
   SnowballC::wordStem(words, language = "en")  # lemmatize each word in the input vector
 }
@@ -131,7 +131,7 @@ dtm_stemming_stand <- CreateDtm(doc_vec = doc_vec, # character vector of documen
 
 head(sort(colSums(as.matrix(dtm_standard)), decreasing = TRUE), 10)
 head(sort(colSums(as.matrix(dtm_baseline)), decreasing = TRUE, ), 10)
-head(sort(colSums(as.matrix(dtm_lemmatization_stand)), decreasing = TRUE), 10) # this one is choosen
+head(sort(colSums(as.matrix(dtm_lemmatization_stand)), decreasing = TRUE), 10) # this one is the one selected
 head(sort(colSums(as.matrix(dtm_stemming_stand)), decreasing = TRUE), 10)
 
 # I will go with 3rd aproach as It does not take so long and its more accurate and precise because it considers context and part of speech.
