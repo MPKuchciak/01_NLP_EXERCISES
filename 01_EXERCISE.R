@@ -142,6 +142,8 @@ head(sort(colSums(as.matrix(dtm_stemming_stand)), decreasing = TRUE), 10)
 ####### COSINE SIMILARITY AND DISTANCE MATRIX
 ################################################################################
 
+dtm <- dtm_lemmatization_stand
+
 # Compute TF-IDF and cosine similarity
 tf_mat <- TermDocFreq(dtm)
 tfidf <- t(dtm[, tf_mat$term]) * tf_mat$idf
@@ -156,9 +158,24 @@ cdist <- as.dist(1 - csim)
 
 
 ################################################################################
-####### ENTRY TO CLUSTERING
+####### Determine the Number of Clusters (k)
 ################################################################################
 
+# 1. Elbow Method Using Sum of Squared Distances
+# Compute WSS for k = 1 to 10
+wcss <- sapply(2:10, function(k) {
+  kmeans(tfidf, centers = k, nstart = 25)$tot.withinss
+})
+
+plot(2:10, wcss, type = "b", xlab = "Number of Clusters (k)", ylab = "WCSS")
+
+
+
+
+
+################################################################################
+####### ENTRY TO CLUSTERING
+################################################################################
 # Perform hierarchical clustering
 hc <- hclust(cdist, "ward.D")
 
