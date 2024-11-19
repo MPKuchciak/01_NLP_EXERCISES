@@ -279,29 +279,76 @@ print(table(optimal_clusters))  # Frequency of elements in each cluster
 ####### STEP 2: K-MEANS CLUSTERING
 ################################################################################
 
-# Second aproach to clustering 
-k <- 2
+set.seed(123)  # Ensure reproducibility
+# Step 1: Define a range for the number of clusters
+k_range <- 2:10
 
-# Silhouette analysis for k-means
-silhouette_scores_kmeans <- sapply(2:5, function(k) {
-  kmeans_result <- kmeans(tfidf, centers = k, nstart = 5) # nstart = 25
-  mean(silhouette(kmeans_result$cluster, dist(tfidf))[, 3])
+################################################################################
+# 1. Silhouette Analysis for K-Means
+################################################################################
+
+silhouette_scores_kmeans <- sapply(k_range, function(k) {
+  kmeans_result <- kmeans(tfidf, centers = k, nstart = 5)
+  mean(silhouette(kmeans_result$cluster, dist(tfidf))[, 3])  # Average silhouette width
 })
-k <- 2
-kmeans_result <- kmeans(tfidf, centers = k, nstart = 1)
-mean(silhouette(kmeans_result$cluster, dist(tfidf))[, 3])
-kmeans_result$cluster
 
-# Plot silhouette scores for k-means clustering
-plot(2:5, silhouette_scores_kmeans, type = "b", xlab = "Number of Clusters (k)",
-     ylab = "Average Silhouette Width", main = "Silhouette Analysis for K-Means")
+# Find optimal k using silhouette method
+optimal_k_silhouette_kmeans <- k_range[which.max(silhouette_scores_kmeans)]
+cat("Optimal number of clusters for K-Means (Silhouette):", optimal_k_silhouette_kmeans, "\n")
 
-# Optimal number of clusters for k-means
-k_kmeans <- which.max(silhouette_scores_kmeans)
-cat("Optimal number of clusters for k-means:", k_kmeans, "\n")
+# Plot silhouette scores for k-means
+ggplot(data = data.frame(k = k_range, Silhouette = silhouette_scores_kmeans), aes(x = k, y = Silhouette)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "red", size = 3) +
+  geom_point(aes(x = optimal_k_silhouette_kmeans, y = max(Silhouette)), color = "green", size = 5) +
+  labs(
+    title = "Silhouette Analysis for K-Means Clustering",
+    x = "Number of Clusters (k)",
+    y = "Average Silhouette Width"
+  ) +
+  theme_minimal()
 
-# Run k-means with optimal number of clusters
-kmeans_result <- kmeans(tfidf, centers = k_kmeans, nstart = 25)
+################################################################################
+# 2. Elbow Method for K-Means
+################################################################################
+
+# Calculate within-cluster sum of squares (WCSS) for k-means
+wcss_kmeans <- sapply(k_range, function(k) {
+  set.seed(123)  # Ensure reproducibility
+  kmeans_result <- kmeans(tfidf, centers = k, nstart = 25)
+  kmeans_result$tot.withinss
+})
+
+# Find the elbow point for WCSS
+elbow_point_kmeans <- which.min(diff(wcss_kmeans)) + 1  # Approximate selection
+cat("Elbow point for K-Means (WCSS):", elbow_point_kmeans, "\n")
+
+# Plot WCSS for k-means
+ggplot(data = data.frame(k = k_range, WCSS = wcss_kmeans), aes(x = k, y = WCSS)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "red", size = 3) +
+  geom_point(aes(x = elbow_point_kmeans, y = WCSS[elbow_point_kmeans]), color = "green", size = 5) +
+  labs(
+    title = "Elbow Method for K-Means Clustering",
+    x = "Number of Clusters (k)",
+    y = "WCSS"
+  ) +
+  theme_minimal()
+
+################################################################################
+# 3. Run K-Means with Optimal Clusters
+################################################################################
+
+# Run k-means clustering with the optimal k
+set.seed(123)  # Ensure reproducibility
+kmeans_result <- kmeans(tfidf, centers = optimal_k_silhouette_kmeans, nstart = 25)
+
+# Cluster assignments
+clusters_kmeans <- kmeans_result$cluster
+
+# Print cluster assignments
+cat("Cluster assignments for K-Means:\n")
+print(table(clusters_kmeans))
 
 ################################################################################
 ####### STEP 3: EVALUATE CLUSTERING QUALITY
