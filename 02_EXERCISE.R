@@ -182,30 +182,40 @@ silhouette_scores_hc <- sapply(2:10, function(k) {
 # Plot silhouette scores for hierarchical clustering
 plot(2:10, silhouette_scores_hc, type = "b", xlab = "Number of Clusters (k)",
      ylab = "Average Silhouette Width", main = "Silhouette Analysis for Hierarchical Clustering")
+# if we set up some high number silhoutte wwill be even higher but we do not want so many different topics to be choosen
 
 # Optimal number of clusters based on silhouette scores
 k_hc <- which.max(silhouette_scores_hc)
-cat("Optimal number of clusters for hclust:", k_hc, "\n")
+cat("Optimal number of clusters for hclust:", k_hc, "\n") # optimal no of hclust = 2
 
 # Cut dendrogram into optimal clusters
 clusters_hc <- cutree(hc, k_hc)
 
-# Visualize dendrogram (optional)
-fviz_dend(hc, k = k_hc, rect = TRUE, show_labels = FALSE,
-          main = "Hierarchical Clustering Dendrogram")
+# Visualize dendrogram using factoextra package -> do not use it's tragic for that data
+# fviz_dend(hc, k = k_hc, rect = TRUE, show_labels = FALSE,
+#           main = "Hierarchical Clustering Dendrogram")
+
+
 
 ################################################################################
 ####### STEP 2: K-MEANS CLUSTERING
 ################################################################################
 
+# Second aproach to clustering 
+k <- 2
+
 # Silhouette analysis for k-means
-silhouette_scores_kmeans <- sapply(2:10, function(k) {
+silhouette_scores_kmeans <- sapply(2:5, function(k) {
   kmeans_result <- kmeans(tfidf, centers = k, nstart = 5) # nstart = 25
   mean(silhouette(kmeans_result$cluster, dist(tfidf))[, 3])
 })
+k <- 2
+kmeans_result <- kmeans(tfidf, centers = k, nstart = 1)
+mean(silhouette(kmeans_result$cluster, dist(tfidf))[, 3])
+kmeans_result$cluster
 
 # Plot silhouette scores for k-means clustering
-plot(2:10, silhouette_scores_kmeans, type = "b", xlab = "Number of Clusters (k)",
+plot(2:5, silhouette_scores_kmeans, type = "b", xlab = "Number of Clusters (k)",
      ylab = "Average Silhouette Width", main = "Silhouette Analysis for K-Means")
 
 # Optimal number of clusters for k-means
