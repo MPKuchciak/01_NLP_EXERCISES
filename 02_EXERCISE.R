@@ -54,7 +54,7 @@ lemma_func <- function(words) {
 
 # Apply stemming - function
 stemmed_func <- function(words) {
-  SnowballC::wordStem(words, language = "en")  # lemmatize each word in the input vector
+  SnowballC::wordStem(words, language = "en")  # steam each word in the input vector
 }
 
 ################################################################################
@@ -166,34 +166,112 @@ library(factoextra)  # For visualization and evaluation
 
 
 
-################################################################################
-####### STEP 1: HIERARCHICAL CLUSTERING
-################################################################################
+###############################################################################
+####### STEP 1.1: HIERARCHICAL CLUSTERING
+###############################################################################
 
 # Perform hierarchical clustering -> may take a long time for n-grams = 3
-hc <- hclust(cdist, "ward.D")
+hc <- hclust(cdist, method = "ward.D")
 
-# Choose number of clusters (k) using silhouette analysis
+
+
+################################################################################
+####### STEP 1.2: SILHOUETTE ANALYSIS
+################################################################################
+
+# Silhouette scores for k = 2 to 10
 silhouette_scores_hc <- sapply(2:10, function(k) {
   clusters <- cutree(hc, k)
   mean(silhouette(clusters, cdist)[, 3])  # Average silhouette width
 })
 
-# Plot silhouette scores for hierarchical clustering
+# Plot silhouette scores
 plot(2:10, silhouette_scores_hc, type = "b", xlab = "Number of Clusters (k)",
-     ylab = "Average Silhouette Width", main = "Silhouette Analysis for Hierarchical Clustering")
-# if we set up some high number silhoutte wwill be even higher but we do not want so many different topics to be choosen
+     ylab = "Average Silhouette Width", 
+     main = "Silhouette Analysis for Hierarchical Clustering",
+     col = "blue", pch = 16)
 
 # Optimal number of clusters based on silhouette scores
-k_hc <- which.max(silhouette_scores_hc)
-cat("Optimal number of clusters for hclust:", k_hc, "\n") # optimal no of hclust = 2
+optimal_k_silhouette <- which.max(silhouette_scores_hc) + 1
+cat("Optimal number of clusters (Silhouette):", optimal_k_silhouette, "\n")
 
-# Cut dendrogram into optimal clusters
-clusters_hc <- cutree(hc, k_hc)
 
-# Visualize dendrogram using factoextra package -> do not use it's tragic for that data
-# fviz_dend(hc, k = k_hc, rect = TRUE, show_labels = FALSE,
-#           main = "Hierarchical Clustering Dendrogram")
+
+################################################################################
+####### STEP 1.3: ELBOW METHOD
+################################################################################
+
+# Convert cdist to a matrix for indexing
+cdist_matrix <- as.matrix(cdist)
+
+# Compute WCSS for k = 2 to 10
+wcss_hc <- sapply(2:10, function(k) {
+  clusters <- cutree(hc, k)
+  sum(sapply(unique(clusters), function(cluster) {
+    cluster_indices <- which(clusters == cluster)
+    cluster_dists <- cdist_matrix[cluster_indices, cluster_indices]
+    sum(cluster_dists^2) / length(cluster_indices)
+  }))
+})
+
+# Plot WCSS for hierarchical clustering
+plot(2:10, wcss_hc, type = "b", xlab = "Number of Clusters (k)",
+     ylab = "WCSS", main = "Elbow Method for Hierarchical Clustering",
+     col = "red", pch = 16)
+
+# Enhanced visualization using ggplot2
+library(ggplot2)
+
+# Convert WCSS data into a data frame
+elbow_data <- data.frame(
+  k = 2:10,
+  WCSS = wcss_hc
+)
+
+# Identify the elbow point (approximation)
+elbow_point <- which.min(diff(wcss_hc)) + 1  # Adjust as needed
+ggplot(elbow_data, aes(x = k, y = WCSS)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "red", size = 3) +
+  geom_point(data = elbow_data[elbow_data$k == elbow_point, ],
+             aes(x = k, y = WCSS), color = "green", size = 5) +
+  labs(
+    title = "Elbow Method for Hierarchical Clustering",
+    x = "Number of Clusters (k)",
+    y = "WCSS (Within-Cluster Sum of Squares)"
+  ) +
+  theme_minimal() +
+  annotate("text", x = elbow_point, y = wcss_hc[elbow_point],
+           label = paste("Optimal k =", elbow_point), vjust = -1.5, color = "darkgreen")
+
+
+
+################################################################################
+####### STEP 1.4: EVALUATE CLUSTERS FOR K = 2:10
+################################################################################
+
+# Evaluate clusters and store cluster memberships for k = 2 to 10
+cluster_results <- list()
+
+for (k in 2:10) {
+  cluster_results[[k]] <- cutree(hc, k)
+  cat(sprintf("Cluster assignments for k = %d:\n", k))
+  print(table(cluster_results[[k]]))  # Frequency of elements in each cluster
+}
+
+
+
+################################################################################
+####### STEP 1.5: USE OPTIMAL CLUSTERING RESULT
+################################################################################
+
+# Use the optimal number of clusters based on silhouette analysis
+optimal_clusters <- cutree(hc, optimal_k_silhouette)
+
+# Output cluster memberships for the optimal k
+cat("\nOptimal clusters based on silhouette scores:\n")
+print(table(optimal_clusters))  # Frequency of elements in each cluster
+
 
 
 
