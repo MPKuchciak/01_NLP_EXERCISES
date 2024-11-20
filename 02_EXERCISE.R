@@ -57,6 +57,8 @@ stemmed_func <- function(words) {
   SnowballC::wordStem(words, language = "en")  # steam each word in the input vector
 }
 
+
+
 ################################################################################
 # 1. DTM Creation - Create the document-term matrix (DTM)
 
@@ -138,6 +140,7 @@ head(sort(colSums(as.matrix(dtm_stemming_stand)), decreasing = TRUE), 10)
 # Also checked ngram 1:2 and 1:3 and it does not change much in out dtm df's
 
 
+
 ################################################################################
 ####### COSINE SIMILARITY AND DISTANCE MATRIX
 ################################################################################
@@ -146,6 +149,10 @@ dtm <- dtm_lemmatization_stand
 
 # Compute TF-IDF and cosine similarity
 tf_mat <- TermDocFreq(dtm)
+# Filtering term_freq, doc_freq, and sorting idf?
+
+
+
 tfidf <- t(dtm[, tf_mat$term]) * tf_mat$idf
 tfidf <- t(tfidf)
 
@@ -155,6 +162,28 @@ csim <- tfidf / sqrt(rowSums(tfidf * tfidf) + 1e-8) # Add a small constant to av
 csim <- csim %*% t(csim)
 cdist <- as.dist(1 - csim)
 
+
+
+################################################################################
+####### checking dtm etc.
+################################################################################
+
+# Sort terms by TF, DF, and IDF
+term_stats <- tf_mat
+str(term_stats)
+# Sort terms by Term Frequency (TF)
+term_stats_sorted_tf <- term_stats[order(-term_stats$term_freq), ]
+
+# Sort terms by Document Frequency (DF)
+term_stats_sorted_df <- term_stats[order(-term_stats$doc_freq), ]
+
+# Sort terms by Inverse Document Frequency (IDF)
+term_stats_sorted_idf <- term_stats[order(-term_stats$idf), ]
+
+# Check the sorted data frames
+head(term_stats_sorted_tf)
+head(term_stats_sorted_df)
+head(term_stats_sorted_idf)
 
 
 ################################################################################
@@ -281,32 +310,17 @@ print(table(optimal_clusters))  # Frequency of elements in each cluster
 
 set.seed(123)  # Ensure reproducibility
 # Step 1: Define a range for the number of clusters
-k_range <- 2:10
+k_range <- 2:5
 
 ################################################################################
-# 1. Silhouette Analysis for K-Means
+# 1. Silhouette Analysis for K-Means - to much time taken or not even working properly
 ################################################################################
 
-silhouette_scores_kmeans <- sapply(k_range, function(k) {
-  kmeans_result <- kmeans(tfidf, centers = k, nstart = 5)
-  mean(silhouette(kmeans_result$cluster, dist(tfidf))[, 3])  # Average silhouette width
-})
+k <- 3
+kmeans_result <- kmeans(tfidf, centers = k, nstart = 25)
+mean(silhouette(kmeans_result$cluster, dist(tfidf))[, 3])
 
-# Find optimal k using silhouette method
-optimal_k_silhouette_kmeans <- k_range[which.max(silhouette_scores_kmeans)]
-cat("Optimal number of clusters for K-Means (Silhouette):", optimal_k_silhouette_kmeans, "\n")
 
-# Plot silhouette scores for k-means
-ggplot(data = data.frame(k = k_range, Silhouette = silhouette_scores_kmeans), aes(x = k, y = Silhouette)) +
-  geom_line(color = "blue", size = 1) +
-  geom_point(color = "red", size = 3) +
-  geom_point(aes(x = optimal_k_silhouette_kmeans, y = max(Silhouette)), color = "green", size = 5) +
-  labs(
-    title = "Silhouette Analysis for K-Means Clustering",
-    x = "Number of Clusters (k)",
-    y = "Average Silhouette Width"
-  ) +
-  theme_minimal()
 
 ################################################################################
 # 2. Elbow Method for K-Means
@@ -314,13 +328,12 @@ ggplot(data = data.frame(k = k_range, Silhouette = silhouette_scores_kmeans), ae
 
 # Calculate within-cluster sum of squares (WCSS) for k-means
 wcss_kmeans <- sapply(k_range, function(k) {
-  set.seed(123)  # Ensure reproducibility
-  kmeans_result <- kmeans(tfidf, centers = k, nstart = 25)
+  kmeans_result <- kmeans(tfidf, centers = k, nstart = 5)
   kmeans_result$tot.withinss
 })
 
 # Find the elbow point for WCSS
-elbow_point_kmeans <- which.min(diff(wcss_kmeans)) + 1  # Approximate selection
+elbow_point_kmeans <- which.min(abs(diff(wcss_kmeans))) + 1  # Approximate selection
 cat("Elbow point for K-Means (WCSS):", elbow_point_kmeans, "\n")
 
 # Plot WCSS for k-means
@@ -335,13 +348,14 @@ ggplot(data = data.frame(k = k_range, WCSS = wcss_kmeans), aes(x = k, y = WCSS))
   ) +
   theme_minimal()
 
+
+
 ################################################################################
 # 3. Run K-Means with Optimal Clusters
 ################################################################################
 
 # Run k-means clustering with the optimal k
-set.seed(123)  # Ensure reproducibility
-kmeans_result <- kmeans(tfidf, centers = optimal_k_silhouette_kmeans, nstart = 25)
+kmeans_result <- kmeans(tfidf, centers = elbow_point_kmeans, nstart = 25)
 
 # Cluster assignments
 clusters_kmeans <- kmeans_result$cluster
@@ -349,6 +363,8 @@ clusters_kmeans <- kmeans_result$cluster
 # Print cluster assignments
 cat("Cluster assignments for K-Means:\n")
 print(table(clusters_kmeans))
+
+
 
 ################################################################################
 ####### STEP 3: EVALUATE CLUSTERING QUALITY
