@@ -41,6 +41,8 @@ stopword_vec <- unique(c(stopwords::stopwords("en"), stopwords::stopwords(source
 str(doc_vec)
 str(doc_names)
 
+set.seed(420)
+
 
 
 ################################################################################
@@ -149,10 +151,6 @@ dtm <- dtm_lemmatization_stand
 
 # Compute TF-IDF and cosine similarity
 tf_mat <- TermDocFreq(dtm)
-# Filtering term_freq, doc_freq, and sorting idf?
-
-
-
 tfidf <- t(dtm[, tf_mat$term]) * tf_mat$idf
 tfidf <- t(tfidf)
 
@@ -165,8 +163,35 @@ cdist <- as.dist(1 - csim)
 
 
 ################################################################################
-####### checking dtm etc.
+####### checking dtm, termdocfreq
 ################################################################################
+
+# Summary statistics for `doc_freq` and `idf`
+summary_stats <- data.frame(
+  Metric = c("Doc Frequency", "IDF"),
+  Min = c(min(tf_mat$doc_freq), min(tf_mat$idf)),
+  Mean = c(mean(tf_mat$doc_freq), mean(tf_mat$idf)),
+  Median = c(median(tf_mat$doc_freq), median(tf_mat$idf)),
+  Max = c(max(tf_mat$doc_freq), max(tf_mat$idf)),
+  SD = c(sd(tf_mat$doc_freq), sd(tf_mat$idf))
+)
+print(summary_stats)
+
+# Create histograms for distribution
+library(ggplot2)
+
+# Document Frequency
+ggplot(tf_mat, aes(x = doc_freq)) +
+  geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Document Frequency", x = "Document Frequency", y = "Count") +
+  theme_minimal()
+
+# IDF
+ggplot(tf_mat, aes(x = idf)) +
+  geom_histogram(binwidth = 0.5, fill = "coral", color = "black") +
+  labs(title = "Distribution of Inverse Document Frequency (IDF)", x = "IDF", y = "Count") +
+  theme_minimal()
+
 
 # Sort terms by TF, DF, and IDF
 term_stats <- tf_mat
@@ -186,21 +211,51 @@ head(term_stats_sorted_df)
 head(term_stats_sorted_idf)
 
 
+
 ################################################################################
-####### CLUSTERING COMPARISON: HIERARCHICAL VS. K-MEANS
+####### COSINE SIMILARITY AND DISTANCE MATRIX - FILTERED VERSION
 ################################################################################
 
-library(cluster)  # For silhouette analysis
-library(factoextra)  # For visualization and evaluation
+# Filtering terms with doc_freq < 5 or doc_freq > 0.8 * number of documents
+min_doc_freq <- 2
+
+#max_doc_freq <- 0.8 * nrow(doc_vec)
+max_doc_freq <- length(doc_vec)
+
+tf_mat_filtered <- tf_mat[tf_mat$doc_freq >= min_doc_freq & tf_mat$doc_freq <= max_doc_freq, ]
+
+nrow(tf_mat) - nrow(tf_mat_filtered)
+nrow(tf_mat_filtered)
+
+# Apply the filter to DTM
+dtm_filtered <- dtm[, tf_mat_filtered$term]
 
 
 
-###############################################################################
+################################################################################
+
+# Compute cosine similarity and distance matrix
+tfidf_filtered <- t(dtm_filtered[, tf_mat_filtered$term]) * tf_mat_filtered$idf
+tfidf_filtered <- t(tfidf_filtered)
+
+# Normalize and calculate cosine similarity
+csim_filtered <- tfidf_filtered / sqrt(rowSums(tfidf_filtered * tfidf_filtered) + 1e-8)
+csim_filtered <- csim_filtered %*% t(csim_filtered)
+cdist_filtered <- as.dist(1 - csim_filtered)
+
+
+
+################################################################################
+####### CLUSTERING #############################################################
+################################################################################
+################################################################################
 ####### STEP 1.1: HIERARCHICAL CLUSTERING
 ###############################################################################
 
 # Perform hierarchical clustering -> may take a long time for n-grams = 3
 hc <- hclust(cdist, method = "ward.D")
+
+hc_filtered <- hclust(cdist_filtered, method = "ward.D")
 
 
 
@@ -208,6 +263,7 @@ hc <- hclust(cdist, method = "ward.D")
 ####### STEP 1.2: SILHOUETTE ANALYSIS
 ################################################################################
 
+# ------------ HC --------------------------------------------------------------
 # Silhouette scores for k = 2 to 10
 silhouette_scores_hc <- sapply(2:10, function(k) {
   clusters <- cutree(hc, k)
@@ -220,15 +276,35 @@ plot(2:10, silhouette_scores_hc, type = "b", xlab = "Number of Clusters (k)",
      main = "Silhouette Analysis for Hierarchical Clustering",
      col = "blue", pch = 16)
 
-# Optimal number of clusters based on silhouette scores
+# Optimal number of clusters based on silhouette scores ( we do not consider highest number of clusters where values would be highest beacause so many topics do not make sense for answering question given in a task)
 optimal_k_silhouette <- which.max(silhouette_scores_hc) + 1
 cat("Optimal number of clusters (Silhouette):", optimal_k_silhouette, "\n")
+
+
+
+# ------------ HC_filtered -----------------------------------------------------
+silhouette_scores_hc_filtered <- sapply(2:10, function(k) {
+  clusters <- cutree(hc_filtered, k)
+  mean(silhouette(clusters, cdist_filtered)[, 3])  # Average silhouette width
+})
+
+# Plot silhouette scores
+plot(2:10, silhouette_scores_hc_filtered, type = "b", xlab = "Number of Clusters (k)",
+     ylab = "Average Silhouette Width", 
+     main = "Silhouette Analysis for Hierarchical Clustering",
+     col = "blue", pch = 16)
+
+# Optimal number of clusters based on silhouette scores ( we do not consider highest number of clusters)
+optimal_k_silhouette_filtered <- which.max(silhouette_scores_hc_filtered) + 1
+cat("Optimal number of clusters (Silhouette):", optimal_k_silhouette_filtered, "\n")
 
 
 
 ################################################################################
 ####### STEP 1.3: ELBOW METHOD
 ################################################################################
+
+# ------------ wcss_hc ---------------------------------------------------------
 
 # Convert cdist to a matrix for indexing
 cdist_matrix <- as.matrix(cdist)
@@ -247,9 +323,6 @@ wcss_hc <- sapply(2:10, function(k) {
 plot(2:10, wcss_hc, type = "b", xlab = "Number of Clusters (k)",
      ylab = "WCSS", main = "Elbow Method for Hierarchical Clustering",
      col = "red", pch = 16)
-
-# Enhanced visualization using ggplot2
-library(ggplot2)
 
 # Convert WCSS data into a data frame
 elbow_data <- data.frame(
@@ -275,9 +348,55 @@ ggplot(elbow_data, aes(x = k, y = WCSS)) +
 
 
 
+# ------------ wcss_hc_filtered ------------------------------------------------
+
+# Convert cdist to a matrix for indexing
+cdist_matrix_filtered <- as.matrix(cdist_filtered)
+
+# Compute WCSS for k = 2 to 10
+wcss_hc_filtered <- sapply(2:10, function(k) {
+  clusters <- cutree(hc_filtered, k)
+  sum(sapply(unique(clusters), function(cluster) {
+    cluster_indices <- which(clusters == cluster)
+    cluster_dists <- cdist_matrix_filtered[cluster_indices, cluster_indices]
+    sum(cluster_dists^2) / length(cluster_indices)
+  }))
+})
+
+# Plot WCSS for hierarchical clustering
+plot(2:10, wcss_hc_filtered, type = "b", xlab = "Number of Clusters (k)",
+     ylab = "WCSS", main = "Elbow Method for Hierarchical Clustering",
+     col = "red", pch = 16)
+
+# Convert WCSS data into a data frame
+elbow_data <- data.frame(
+  k = 2:10,
+  WCSS = wcss_hc_filtered
+)
+
+# Identify the elbow point (approximation)
+elbow_point <- which.min(diff(wcss_hc_filtered)) + 1  # Adjust as needed
+ggplot(elbow_data, aes(x = k, y = WCSS)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "red", size = 3) +
+  geom_point(data = elbow_data[elbow_data$k == elbow_point, ],
+             aes(x = k, y = WCSS), color = "green", size = 5) +
+  labs(
+    title = "Elbow Method for Hierarchical Clustering",
+    x = "Number of Clusters (k)",
+    y = "WCSS (Within-Cluster Sum of Squares)"
+  ) +
+  theme_minimal() +
+  annotate("text", x = elbow_point, y = wcss_hc_filtered[elbow_point],
+           label = paste("Optimal k =", elbow_point), vjust = -1.5, color = "darkgreen")
+
+
+
 ################################################################################
 ####### STEP 1.4: EVALUATE CLUSTERS FOR K = 2:10
 ################################################################################
+
+# ------------ non-filtered ----------------------------------------------------
 
 # Evaluate clusters and store cluster memberships for k = 2 to 10
 cluster_results <- list()
@@ -290,9 +409,24 @@ for (k in 2:10) {
 
 
 
+# ------------ filtered --------------------------------------------------------
+
+# Evaluate clusters and store cluster memberships for k = 2 to 10
+cluster_results <- list()
+
+for (k in 2:10) {
+  cluster_results[[k]] <- cutree(hc_filtered, k)
+  cat(sprintf("Cluster assignments for k = %d:\n", k))
+  print(table(cluster_results[[k]]))  # Frequency of elements in each cluster
+}
+
+
+
 ################################################################################
 ####### STEP 1.5: USE OPTIMAL CLUSTERING RESULT
 ################################################################################
+
+# ------------ non-filtered ----------------------------------------------------
 
 # Use the optimal number of clusters based on silhouette analysis
 optimal_clusters <- cutree(hc, optimal_k_silhouette)
@@ -303,14 +437,94 @@ print(table(optimal_clusters))  # Frequency of elements in each cluster
 
 
 
+# ------------ filtered --------------------------------------------------------
+
+# Use the optimal number of clusters based on silhouette analysis
+optimal_clusters <- cutree(hc_filtered, optimal_k_silhouette_filtered)
+
+# Output cluster memberships for the optimal k
+cat("\nOptimal clusters based on silhouette scores:\n")
+print(table(optimal_clusters))  # Frequency of elements in each cluster
+
+
 
 ################################################################################
 ####### STEP 2: K-MEANS CLUSTERING
-################################################################################
+################################################################################\
 
-set.seed(123)  # Ensure reproducibility
 # Step 1: Define a range for the number of clusters
 k_range <- 2:5
+
+################################################################################
+# STEP 2.1: K-Means Clustering
+################################################################################
+
+run_kmeans <- function(tfidf_matrix, k_range) {
+  # Calculate Silhouette scores
+  silhouette_scores <- sapply(k_range, function(k) {
+    kmeans_result <- kmeans(tfidf_matrix, centers = k, nstart = 25)
+    mean(silhouette(kmeans_result$cluster, dist(tfidf_matrix))[, 3])
+  })
+  
+  # Plot Silhouette scores
+  plot(k_range, silhouette_scores, type = "b", col = "blue", pch = 16,
+       xlab = "Number of Clusters (k)", ylab = "Silhouette Score",
+       main = "Silhouette Analysis for K-Means")
+  
+  # Optimal k based on Silhouette
+  optimal_k_silhouette <- k_range[which.max(silhouette_scores)]
+  cat("Optimal k (Silhouette):", optimal_k_silhouette, "\n")
+  
+  # Elbow Method
+  wcss <- sapply(k_range, function(k) {
+    kmeans_result <- kmeans(tfidf_matrix, centers = k, nstart = 25)
+    kmeans_result$tot.withinss
+  })
+  
+  # Plot WCSS
+  plot(k_range, wcss, type = "b", col = "red", pch = 16,
+       xlab = "Number of Clusters (k)", ylab = "WCSS",
+       main = "Elbow Method for K-Means")
+  
+  # Approximate Elbow Point
+  elbow_point <- which.min(abs(diff(wcss))) + 1
+  cat("Elbow point for K-Means (WCSS):", elbow_point, "\n")
+  
+  # Perform K-Means with optimal k (Silhouette)
+  kmeans_result <- kmeans(tfidf_matrix, centers = optimal_k_silhouette, nstart = 25)
+  
+  # Return results
+  list(
+    kmeans_result = kmeans_result,
+    optimal_k_silhouette = optimal_k_silhouette,
+    elbow_point = elbow_point
+  )
+}
+
+# Define range of k
+k_range <- 2:10
+
+################################################################################
+# Run K-Means for Unfiltered TF-IDF
+################################################################################
+
+cat("K-Means Clustering for Unfiltered TF-IDF\n")
+result <- run_kmeans(tfidf, k_range)
+
+cat("\nCluster assignments (Unfiltered):\n")
+print(table(result_unfiltered$kmeans_result$cluster))
+
+################################################################################
+# Run K-Means for Filtered TF-IDF
+################################################################################
+
+cat("K-Means Clustering for Filtered TF-IDF\n")
+result_filtered <- run_kmeans(tfidf_filtered, k_range)
+
+cat("\nCluster assignments (Filtered):\n")
+print(table(result_filtered$kmeans_result$cluster))
+
+
 
 ################################################################################
 # 1. Silhouette Analysis for K-Means - to much time taken or not even working properly
