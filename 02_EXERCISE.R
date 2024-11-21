@@ -459,427 +459,84 @@ k_range <- 2:5
 # STEP 2.1: K-Means Clustering
 ################################################################################
 
-run_kmeans <- function(tfidf_matrix, k_range) {
-  # Calculate Silhouette scores
-  silhouette_scores <- sapply(k_range, function(k) {
-    kmeans_result <- kmeans(tfidf_matrix, centers = k, nstart = 25)
-    mean(silhouette(kmeans_result$cluster, dist(tfidf_matrix))[, 3])
-  })
-  
-  # Plot Silhouette scores
-  plot(k_range, silhouette_scores, type = "b", col = "blue", pch = 16,
-       xlab = "Number of Clusters (k)", ylab = "Silhouette Score",
-       main = "Silhouette Analysis for K-Means")
-  
-  # Optimal k based on Silhouette
-  optimal_k_silhouette <- k_range[which.max(silhouette_scores)]
-  cat("Optimal k (Silhouette):", optimal_k_silhouette, "\n")
-  
-  # Elbow Method
-  wcss <- sapply(k_range, function(k) {
-    kmeans_result <- kmeans(tfidf_matrix, centers = k, nstart = 25)
-    kmeans_result$tot.withinss
-  })
-  
-  # Plot WCSS
-  plot(k_range, wcss, type = "b", col = "red", pch = 16,
-       xlab = "Number of Clusters (k)", ylab = "WCSS",
-       main = "Elbow Method for K-Means")
-  
-  # Approximate Elbow Point
-  elbow_point <- which.min(abs(diff(wcss))) + 1
-  cat("Elbow point for K-Means (WCSS):", elbow_point, "\n")
-  
-  # Perform K-Means with optimal k (Silhouette)
-  kmeans_result <- kmeans(tfidf_matrix, centers = optimal_k_silhouette, nstart = 25)
-  
-  # Return results
-  list(
-    kmeans_result = kmeans_result,
-    optimal_k_silhouette = optimal_k_silhouette,
-    elbow_point = elbow_point
-  )
-}
-
-# Define range of k
-k_range <- 2:10
-
-################################################################################
-# Run K-Means for Unfiltered TF-IDF
-################################################################################
-
-cat("K-Means Clustering for Unfiltered TF-IDF\n")
-result <- run_kmeans(tfidf, k_range)
-
-cat("\nCluster assignments (Unfiltered):\n")
-print(table(result_unfiltered$kmeans_result$cluster))
-
-################################################################################
-# Run K-Means for Filtered TF-IDF
-################################################################################
-
-cat("K-Means Clustering for Filtered TF-IDF\n")
-result_filtered <- run_kmeans(tfidf_filtered, k_range)
-
-cat("\nCluster assignments (Filtered):\n")
-print(table(result_filtered$kmeans_result$cluster))
-
-
-
-################################################################################
-# 1. Silhouette Analysis for K-Means - to much time taken or not even working properly
-################################################################################
-
-k <- 3
-kmeans_result <- kmeans(tfidf, centers = k, nstart = 25)
-mean(silhouette(kmeans_result$cluster, dist(tfidf))[, 3])
-
-
-
-################################################################################
-# 2. Elbow Method for K-Means
-################################################################################
-
-# Calculate within-cluster sum of squares (WCSS) for k-means
-wcss_kmeans <- sapply(k_range, function(k) {
-  kmeans_result <- kmeans(tfidf, centers = k, nstart = 5)
-  kmeans_result$tot.withinss
-})
-
-# Find the elbow point for WCSS
-elbow_point_kmeans <- which.min(abs(diff(wcss_kmeans))) + 1  # Approximate selection
-cat("Elbow point for K-Means (WCSS):", elbow_point_kmeans, "\n")
-
-# Plot WCSS for k-means
-ggplot(data = data.frame(k = k_range, WCSS = wcss_kmeans), aes(x = k, y = WCSS)) +
-  geom_line(color = "blue", size = 1) +
-  geom_point(color = "red", size = 3) +
-  geom_point(aes(x = elbow_point_kmeans, y = WCSS[elbow_point_kmeans]), color = "green", size = 5) +
-  labs(
-    title = "Elbow Method for K-Means Clustering",
-    x = "Number of Clusters (k)",
-    y = "WCSS"
-  ) +
-  theme_minimal()
-
-
-
-################################################################################
-# 3. Run K-Means with Optimal Clusters
-################################################################################
-
-# Run k-means clustering with the optimal k
-kmeans_result <- kmeans(tfidf, centers = elbow_point_kmeans, nstart = 25)
-
-# Cluster assignments
-clusters_kmeans <- kmeans_result$cluster
-
-# Print cluster assignments
-cat("Cluster assignments for K-Means:\n")
-print(table(clusters_kmeans))
-
-
-
-################################################################################
-####### STEP 3: EVALUATE CLUSTERING QUALITY
-################################################################################
-
-# Compare silhouette scores
-hc_silhouette <- max(silhouette_scores_hc)
-kmeans_silhouette <- max(silhouette_scores_kmeans)
-
-cat("Hierarchical Clustering Silhouette Score:", hc_silhouette, "\n")
-cat("K-Means Silhouette Score:", kmeans_silhouette, "\n")
-
-# Choose the better method based on silhouette scores
-if (hc_silhouette > kmeans_silhouette) {
-  cat("Using Hierarchical Clustering (better silhouette score).\n")
-  final_clusters <- clusters_hc
-} else {
-  cat("Using K-Means Clustering (better silhouette score).\n")
-  final_clusters <- kmeans_result$cluster
-}
-
-################################################################################
-####### STEP 4: ANALYZE AND NAME CLUSTERS
-################################################################################
-
-# Create a data frame with reviews and their assigned clusters
-clustered_reviews <- data.frame(
-  Review = doc_vec,
-  Cluster = final_clusters
-)
-
-# Examine top words for each cluster
-top_words_per_cluster <- function(dtm, clusters, num_words = 10) {
-  cluster_terms <- lapply(unique(clusters), function(cluster) {
-    cluster_indices <- which(clusters == cluster)
-    cluster_dtm <- dtm[cluster_indices, ]
-    top_terms <- head(sort(colSums(as.matrix(cluster_dtm)), decreasing = TRUE), num_words)
-    return(names(top_terms))
-  })
-  names(cluster_terms) <- paste0("Cluster_", unique(clusters))
-  return(cluster_terms)
-}
-
-# Generate and print top words for each cluster
-top_words <- top_words_per_cluster(dtm, final_clusters)
-print(top_words)
-
-################################################################################
-####### STEP 5: OUTPUT RESULTS
-################################################################################
-
-# Save clusters and reviews for external analysis
-write.csv(clustered_reviews, "clustered_reviews.csv", row.names = FALSE)
-
-cat("Clustering complete. Results saved to 'clustered_reviews.csv'.\n")
-
-
-
-
-################################################################################
-####### ENTRY TO CLUSTERING
-################################################################################
-# Perform hierarchical clustering
-hc <- hclust(cdist, "ward.D")
-
-# Determine optimal number of clusters (k) visually using a dendrogram -> impossible from this kind of data
-plot(hc)  # Review the plot and decide the number of clusters
-
-
-# 1. Elbow Method Using Sum of Squared Distances
-# Compute WSS for k = 1 to 10
-wss <- sapply(1:10, function(k) {
-  cluster <- cutree(hc, k)  # Cut dendrogram into k clusters
-  sum(sapply(unique(cluster), function(c) {
-    cluster_points <- tfidf[cluster == c, ]
-    cluster_center <- colMeans(cluster_points)
-    sum(rowSums((cluster_points - cluster_center)^2))
-  }))
-})
-
-# Plot WSS
-plot(1:10, wss, type = "b", xlab = "Number of Clusters (k)", ylab = "Within-Cluster Sum of Squares")
-
-#2. Silhouette Analysis
-silhouette_scores <- sapply(2:10, function(k) {
-  cluster <- cutree(hc, k)
-  mean(silhouette(cluster, cdist)[, 3])  # Average silhouette width
-})
-
-# Plot silhouette scores
-plot(2:10, silhouette_scores, type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
-
-# 3.
+# Load required libraries
 library(cluster)
-set.seed(42)
-
-gap_stat <- clusGap(as.matrix(tfidf), FUN = hclust, K.max = 10, B = 50)
-plot(gap_stat, main = "Gap Statistic")
-optimal_k <- maxSE(gap_stat$Tab[, "gap"], gap_stat$Tab[, "SE.sim"])
-print(optimal_k)  # Optimal number of clusters
-
-#4. 
-set.seed(42)
-k <- 3  # Replace with the desired number of clusters or use methods above to determine
-kmeans_result <- kmeans(tfidf, centers = k, nstart = 25)
-
-# Assign cluster labels
-clusters <- kmeans_result$cluster
-
-# Check cluster sizes
-table(clusters)
-
-
-
-
-#5.
 library(ggplot2)
 
-# Reduce dimensions using PCA
-pca_result <- prcomp(tfidf, center = TRUE, scale. = TRUE)
-pca_data <- data.frame(pca_result$x[, 1:2])  # Use first 2 principal components
-
-# Perform clustering on reduced data
-k <- 3  # Number of clusters
-kmeans_result <- kmeans(pca_data, centers = k, nstart = 25)
-
-# Visualize clusters
-pca_data$cluster <- factor(kmeans_result$cluster)
-ggplot(pca_data, aes(x = PC1, y = PC2, color = cluster)) + 
-  geom_point() + 
-  theme_minimal() + 
-  labs(title = "Clusters Visualized on PCA Reduced Data")
-
-
-
-
-#6.
-set.seed(42)
-
-# Determine the optimal k using the elbow method
-wss <- sapply(1:10, function(k) {
-  kmeans(tfidf, centers = k, nstart = 25)$tot.withinss
-})
-
-plot(1:10, wss, type = "b", xlab = "Number of Clusters", ylab = "Total Within-Cluster Sum of Squares")
-
-# Perform k-means with chosen k
-k <- 3  # Replace with optimal k
-kmeans_result <- kmeans(tfidf, centers = k, nstart = 25)
-clusters <- kmeans_result$cluster
-
-
-#7.
-
-library(dbscan)
-
-# Perform DBSCAN (eps and minPts should be tuned based on the dataset)
-dbscan_result <- dbscan(as.matrix(tfidf), eps = 0.5, minPts = 10)
-
-# Assign clusters
-clusters <- dbscan_result$cluster
-table(clusters)  # Check cluster sizes
-
-
-#8.
-
-library(mclust)
-
-# Fit Gaussian mixture model
-mclust_result <- Mclust(as.matrix(tfidf))
-
-# Optimal number of clusters
-optimal_k <- mclust_result$G
-
-# Cluster assignments
-clusters <- mclust_result$classification
-
-
-#9.
-library(cluster)
-
-agnes_result <- agnes(as.matrix(tfidf), method = "ward")
-plot(agnes_result)
-
-# Cut into clusters
-clusters <- cutree(as.hclust(agnes_result), k = 3)
-
-
-k <- 3    # Replace with the desired number of clusters
-
-# Cut dendrogram into k clusters
-clusters <- cutree(hc, k)
 ################################################################################
-###### TF-IDF + other calculations
+# 2.2: Function for Silhouette and Elbow Analysis
 ################################################################################
-
-# 2. Create a TF-IDF matrix
-dtm <- dtm_lemmatization_stand
-
-tf_mat <- TermDocFreq(dtm)
-
-# Compute TF-IDF scores
-tfidf <- t(dtm[, tf_mat$term]) * tf_mat$idf
-tfidf <- t(tfidf)
-
-str(dtm)
-str(tfidf)
-
-# Check the cleaned text for the first few reviews
-head(doc_vec, 10)
-
-# Cosine similarity and distance
-csim <- tfidf / sqrt(rowSums(tfidf * tfidf))  # Normalizing the TF-IDF matrix
-csim <- csim %*% t(csim)  # Calculate cosine similarity matrix
-cdist <- as.dist(1 - csim)  # Convert cosine similarity to distance
-
-anyNA(cdist)        # Checks for NA values
-any(is.nan(cdist))  # Checks for NaN values
-any(is.infinite(cdist))  # Checks for Inf values
-
-# Identify the indices of NA and NaN values in cdist
-na_indices <- which(is.na(cdist), arr.ind = TRUE)
-nan_indices <- which(is.nan(cdist), arr.ind = TRUE)
-
-# Display the rows and columns containing NA values
-na_indices
-nan_indices
-
-csim <- tfidf / sqrt(rowSums(tfidf * tfidf) + 1e-8)  # Add a small constant to avoid division by zero
-csim <- csim %*% t(csim)  # Calculate cosine similarity matrix
-cdist <- as.dist(1 - csim)  # Convert cosine similarity to distance
-
-
-
-# Perform hierarchical clustering (Ward's method)
-hc <- hclust(cdist, "ward.D")
-
-# Cut the dendrogram to get a desired number of clusters
-clustering <- cutree(hc, 3)  # Adjust the number of clusters (5 here for example)
-
-################################################################################
-###### FURTHER PROCESSING
-################################################################################
-
-# Set seed 
-set.seed(123)
-
-k <- 7
-
-# Load the slam package for sparse matrix 
-library(slam)
-
-# For DTM term frequency (using slam::col_sums for sparse matrices)
-term_freq_dtm <- col_sums(dtm)
-
-# For TF-IDF term frequency (using slam::col_sums for sparse matrices)
-term_freq_tfidf <- col_sums(tfidf)
-
-# cHECCK
-print(term_freq_dtm)
-print(term_freq_tfidf)
-
-cluster_indices <- which(km$cluster == 1)
-
-# Print first few cluster indices
-head(cluster_indices)
-
-cluster_summary <- lapply(1:k, function(cluster_num) {
-  # Extract rows corresponding to this cluster
-  cluster_indices <- which(km$cluster == cluster_num)
-  cluster_dtm <- dtm[cluster_indices, , drop = FALSE]  # Ensures the result remains a matrix
+kmeans_analysis <- function(tfidf_matrix, k_range) {
+  # Initialize vectors for results
+  silhouette_scores <- numeric(length(k_range))
+  wcss <- numeric(length(k_range))
   
-  # Check if the matrix has more than one dimension
-  if (length(dim(cluster_dtm)) > 1) {
-    # Calculate term frequencies for the cluster using slam::col_sums
-    term_freq <- slam::col_sums(cluster_dtm)
-  } else {
-    # If only one document in the cluster, calculate term frequency manually
-    term_freq <- cluster_dtm
+  for (i in seq_along(k_range)) {
+    k <- k_range[i]
+    kmeans_result <- kmeans(tfidf_matrix, centers = k, nstart = 25)
+    wcss[i] <- kmeans_result$tot.withinss
+    
+    # Compute silhouette score only if k > 1
+    if (k > 1) {
+      silhouette_scores[i] <- mean(silhouette(kmeans_result$cluster, dist(tfidf_matrix))[, 3])
+    } else {
+      silhouette_scores[i] <- NA
+    }
   }
   
-  # Extract the top 10 terms for this cluster
-  top_terms <- names(sort(term_freq, decreasing = TRUE)[1:20])
+  # Silhouette Plot
+  plot(k_range, silhouette_scores, type = "b", pch = 16, col = "blue",
+       xlab = "Number of Clusters (k)", ylab = "Average Silhouette Score",
+       main = "Silhouette Analysis for Optimal k")
+  abline(v = k_range[which.max(silhouette_scores)], col = "red", lty = 2)
   
-  list(cluster = cluster_num, top_terms = top_terms)
-})
+  # Elbow Plot
+  plot(k_range, wcss, type = "b", pch = 16, col = "red",
+       xlab = "Number of Clusters (k)", ylab = "WCSS (Within-Cluster Sum of Squares)",
+       main = "Elbow Method for Optimal k")
+  abline(v = which.min(abs(diff(wcss))), col = "blue", lty = 2)
+  
+  # Return optimal k
+  list(
+    optimal_k_silhouette = k_range[which.max(silhouette_scores)],
+    elbow_point = k_range[which.min(abs(diff(wcss)))]
+    )
+}
 
-# Print cluster summaries
-print(cluster_summary)
+################################################################################
+# find optimal k on k-means, both on filtered and unfiltered tfidf
+################################################################################
 
-# ANSWER 
-# Cluster 1: May be Finance (based on terms like "money", "fake", "credits").
-# Cluster 2: May be Mobile Gaming (based on terms like "game", "play", "love").
-# Cluster 3: May be Gaming (based on terms like "game", "good", "amazing").
-# Cluster 4: May be Fashion (based on terms like "size", "dress", "fit", "color", "fabric").
-# Cluster 5: May be Gaming or Lifestyle (based on terms like "game", "love", "fun", "addictive").
-# Cluster 6: May be Lifestyle (based on terms like "amazing", "comfortable", "absolute").
-# Cluster 7: May be Lifestyle or Fashion (terms like "amazing", "comfortable", "absolutely").
-# Cluster 8: May be Fashion (terms like "perfect", "size", "dress").
-# Cluster 9: May be Fashion or Goods (terms like "adorable", "perfect", "comfortable").
-# Cluster 10: May be Lifestyle or E-commerce (terms like "perfect", "comfortable", "amazing").
+# Define range of k
+k_range <- 2:5
+
+# Example TF-IDF matrix (replace with your actual matrix)
+# tfidf_matrix <- YOUR_TFIDF_MATRIX
+
+# Run the function
+results <- kmeans_analysis(tfidf, k_range)
+
+# Print optimal k
+cat("Optimal k (Silhouette):", results$optimal_k_silhouette, "\n")
+cat("Optimal k (Elbow Point):", results$elbow_point, "\n")
 
 
-# preferably should use less clusters than 10 beacause some clusters overlapp, I had some issues with this sparse matrix 
+# Define range of k
+k_range <- 2:5
+
+# Example TF-IDF matrix (replace with your actual matrix)
+# tfidf_matrix <- YOUR_TFIDF_MATRIX
+
+# Run the function
+results_filtered <- kmeans_analysis(tfidf_filtered, k_range)
+
+# Print optimal k
+cat("Optimal k (Silhouette):", results_filtered$optimal_k_silhouette, "\n")
+cat("Optimal k (Elbow Point):", results_filtered$elbow_point, "\n")
+
+
+
+################################################################################
+####### STEP 3: ANALYZE AND NAME CLUSTERS
+################################################################################
+
