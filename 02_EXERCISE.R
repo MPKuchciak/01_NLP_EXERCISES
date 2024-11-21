@@ -539,4 +539,164 @@ cat("Optimal k (Elbow Point):", results_filtered$elbow_point, "\n")
 ################################################################################
 ####### STEP 3: ANALYZE AND NAME CLUSTERS
 ################################################################################
+# Perform hierarchical clustering (Ward's method)
+hc <- hclust(cdist, "ward.D")
 
+# Cut the dendrogram to get a desired number of clusters
+clustering <- cutree(hc, 2)  # Adjust the number of clusters (5 here for example)
+
+################################################################################
+###### FURTHER PROCESSING
+################################################################################
+
+
+k <- 2
+
+# Load the slam package for sparse matrix 
+library(slam)
+
+# For DTM term frequency (using slam::col_sums for sparse matrices)
+term_freq_dtm <- col_sums(dtm)
+
+# For TF-IDF term frequency (using slam::col_sums for sparse matrices)
+term_freq_tfidf <- col_sums(tfidf)
+
+# cHECCK
+print(term_freq_dtm)
+print(term_freq_tfidf)
+
+cluster_indices <- which(km$cluster == 1)
+
+# Print first few cluster indices
+head(cluster_indices)
+
+cluster_summary <- lapply(1:k, function(cluster_num) {
+  # Extract rows corresponding to this cluster
+  cluster_indices <- which(km$cluster == cluster_num)
+  cluster_dtm <- dtm[cluster_indices, , drop = FALSE]  # Ensures the result remains a matrix
+  
+  # Check if the matrix has more than one dimension
+  if (length(dim(cluster_dtm)) > 1) {
+    # Calculate term frequencies for the cluster using slam::col_sums
+    term_freq <- slam::col_sums(cluster_dtm)
+  } else {
+    # If only one document in the cluster, calculate term frequency manually
+    term_freq <- cluster_dtm
+  }
+  
+  # Extract the top 10 terms for this cluster
+  top_terms <- names(sort(term_freq, decreasing = TRUE)[1:20])
+  
+  list(cluster = cluster_num, top_terms = top_terms)
+})
+
+# Print cluster summaries
+print(cluster_summary)
+
+
+
+########## HC CLUST NON FILTERED
+hc <- hclust(cdist, "ward.D")
+
+clustering <- cutree(hc, 3)
+
+# plot(hc, main = "Hierarchical clustering of 100 NIH grant abstracts",
+#      ylab = "", xlab = "", yaxt = "n")
+
+#rect.hclust(hc, 5, border = "red")
+# inspect these clusters
+# use the probability difference method
+p_words <- colSums(dtm) / sum(dtm)
+
+cluster_words <- lapply(unique(clustering), function(x){
+  rows <- dtm[ clustering == x , ]
+  
+  # for memory's sake, drop all words that don't appear in the cluster
+  rows <- rows[ , colSums(rows) > 0 ]
+  
+  colSums(rows) / sum(rows) - p_words[ colnames(rows) ]
+})
+
+# create a summary table of the top 5 words defining each cluster
+cluster_summary <- data.frame(cluster = unique(clustering),
+                              size = as.numeric(table(clustering)),
+                              top_words = sapply(cluster_words, function(d){
+                                paste(
+                                  names(d)[ order(d, decreasing = TRUE) ][ 1:5 ], 
+                                  collapse = ", ")
+                              }),
+                              stringsAsFactors = FALSE)
+
+cluster_summary
+
+# plot a word cloud of one cluster as an example
+#install.packages("wordcloud")
+library(wordcloud)
+wordcloud::wordcloud(words = names(cluster_words[[ 5 ]]), 
+                     freq = cluster_words[[ 5 ]], 
+                     max.words = 50, 
+                     random.order = FALSE, 
+                     colors = c("red", "yellow", "blue"),
+                     main = "Top words in cluster 100")
+
+# k means algorithm, 5 clusters, 100 starting configurations
+kfit <- kmeans(cdist, 5, nstart=100)
+
+# plot the output
+install.packages("cluster")
+library(cluster)
+clusplot(as.matrix(cdist), kfit$cluster, color=T, shade=T, labels=2, lines=0)
+
+
+
+######### HC CLUST NON FILTERED
+hc <- hclust(cdist_filtered, "ward.D")
+
+clustering <- cutree(hc, 2)
+
+# plot(hc, main = "Hierarchical clustering of 100 NIH grant abstracts",
+#      ylab = "", xlab = "", yaxt = "n")
+
+#rect.hclust(hc, 5, border = "red")
+# inspect these clusters
+# use the probability difference method
+p_words <- colSums(dtm) / sum(dtm)
+
+cluster_words <- lapply(unique(clustering), function(x){
+  rows <- dtm[ clustering == x , ]
+  
+  # for memory's sake, drop all words that don't appear in the cluster
+  rows <- rows[ , colSums(rows) > 0 ]
+  
+  colSums(rows) / sum(rows) - p_words[ colnames(rows) ]
+})
+
+# create a summary table of the top 5 words defining each cluster
+cluster_summary <- data.frame(cluster = unique(clustering),
+                              size = as.numeric(table(clustering)),
+                              top_words = sapply(cluster_words, function(d){
+                                paste(
+                                  names(d)[ order(d, decreasing = TRUE) ][ 1:5 ], 
+                                  collapse = ", ")
+                              }),
+                              stringsAsFactors = FALSE)
+
+cluster_summary
+
+# plot a word cloud of one cluster as an example
+#install.packages("wordcloud")
+library(wordcloud)
+wordcloud::wordcloud(words = names(cluster_words[[ 5 ]]), 
+                     freq = cluster_words[[ 5 ]], 
+                     max.words = 50, 
+                     random.order = FALSE, 
+                     colors = c("red", "yellow", "blue"),
+                     main = "Top words in cluster 100")
+
+# k means algorithm, 5 clusters, 100 starting configurations
+kfit <- kmeans(cdist, 5, nstart=100)
+
+# plot the output
+install.packages("cluster")
+library(cluster)
+clusplot(as.matrix(cdist), kfit$cluster, color=T, shade=T, labels=2, lines=0)
