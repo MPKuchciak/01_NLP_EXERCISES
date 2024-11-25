@@ -538,17 +538,16 @@ hc <- hclust(cdist, "ward.D")
 # Cut the dendrogram to get a desired number of clusters
 clustering <- cutree(hc, 2)  # Adjust the number of clusters 
 
-k <- 2  # Number of clusters
+k <- 2 # 2  # Number of clusters for K-means
 km <- kmeans(cdist, centers = k, nstart = 100)  # Run K-means clustering
 
 
 
 ################################################################################
-###### FURTHER PROCESSING
+###### FURTHER PROCESSING + TESTING
 ################################################################################
 
-k <- 2  # Number of clusters for K-means
-
+# TESTING CLUSTERING - not needed
 # Load necessary libraries
 library(slam)
 library(cluster)
@@ -587,6 +586,7 @@ print(cluster_summary)
 ###### HIERARCHICAL CLUSTERING (NON-FILTERED)
 ################################################################################
 
+k <- 3 #2 is too small, clusters are not well diversed
 hc <- hclust(cdist, "ward.D")
 clustering <- cutree(hc, k)
 
@@ -625,6 +625,8 @@ if (example_cluster <= length(cluster_words)) {
     main = paste("Top words in cluster", example_cluster)
   )
 }
+
+
 
 ################################################################################
 ###### HIERARCHICAL CLUSTERING (FILTERED)
