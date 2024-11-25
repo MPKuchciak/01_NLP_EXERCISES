@@ -450,19 +450,13 @@ print(table(optimal_clusters))  # Frequency of elements in each cluster
 
 
 ################################################################################
-####### STEP 2: K-MEANS CLUSTERING
+####### STEP 2.1: K-MEANS CLUSTERING
 ################################################################################\
 
-# Step 1: Define a range for the number of clusters
+# Define a range for the number of clusters - takes a lot of time so adjust according to previous method
 k_range <- 2:5
 
-################################################################################
-# STEP 2.1: K-Means Clustering
-################################################################################
 
-# Load required libraries
-library(cluster)
-library(ggplot2)
 
 ################################################################################
 # 2.2: Function for Silhouette and Elbow Analysis
@@ -520,8 +514,7 @@ results <- kmeans_analysis(tfidf, k_range)
 cat("Optimal k (Silhouette):", results$optimal_k_silhouette, "\n")
 cat("Optimal k (Elbow Point):", results$elbow_point, "\n")
 
-unfiltered_results$optimal_k_silhouette <- results$optimal_k_silhouette
-unfiltered_results$elbow_point <- results$elbow_point
+# on graphical analaysis its more like K is 3
 
 # Define range of k
 k_range <- 2:5
@@ -538,11 +531,14 @@ cat("Optimal k (Elbow Point):", results_filtered$elbow_point, "\n")
 ################################################################################
 ####### STEP 3: ANALYZE AND NAME CLUSTERS
 ################################################################################
+
 # Perform hierarchical clustering (Ward's method)
 hc <- hclust(cdist, "ward.D")
 
 # Cut the dendrogram to get a desired number of clusters
-clustering <- cutree(hc, 2)  # Adjust the number of clusters (5 here for example)
+clustering <- cutree(hc, 2)  # Adjust the number of clusters 
+
+
 
 ################################################################################
 ###### FURTHER PROCESSING
