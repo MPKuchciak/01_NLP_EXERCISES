@@ -15,6 +15,9 @@ library(cluster)
 library(textstem)  # For lemmatization
 library(SnowballC) # For stemming
 
+# Create histograms for distribution
+library(ggplot2)
+
 
 
 ################################################################################
@@ -41,6 +44,7 @@ stopword_vec <- unique(c(stopwords::stopwords("en"), stopwords::stopwords(source
 str(doc_vec)
 str(doc_names)
 
+# Setting seed
 set.seed(420)
 
 
@@ -177,9 +181,6 @@ summary_stats <- data.frame(
 )
 print(summary_stats)
 
-# Create histograms for distribution
-library(ggplot2)
-
 # Document Frequency
 ggplot(tf_mat, aes(x = doc_freq)) +
   geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
@@ -191,7 +192,6 @@ ggplot(tf_mat, aes(x = idf)) +
   geom_histogram(binwidth = 0.5, fill = "coral", color = "black") +
   labs(title = "Distribution of Inverse Document Frequency (IDF)", x = "IDF", y = "Count") +
   theme_minimal()
-
 
 # Sort terms by TF, DF, and IDF
 term_stats <- tf_mat
@@ -254,8 +254,10 @@ cdist_filtered <- as.dist(1 - csim_filtered)
 
 # Perform hierarchical clustering -> may take a long time for n-grams = 3
 hc <- hclust(cdist, method = "ward.D")
-
+# Perform hierarchical clustering for cdist filtered
 hc_filtered <- hclust(cdist_filtered, method = "ward.D")
+
+#plot(hc_filtered, labels = FALSE, main = "Hierarchical Clustering Dendrogram")
 
 
 
@@ -305,7 +307,6 @@ cat("Optimal number of clusters (Silhouette):", optimal_k_silhouette_filtered, "
 ################################################################################
 
 # ------------ wcss_hc ---------------------------------------------------------
-
 # Convert cdist to a matrix for indexing
 cdist_matrix <- as.matrix(cdist)
 
@@ -349,7 +350,6 @@ ggplot(elbow_data, aes(x = k, y = WCSS)) +
 
 
 # ------------ wcss_hc_filtered ------------------------------------------------
-
 # Convert cdist to a matrix for indexing
 cdist_matrix_filtered <- as.matrix(cdist_filtered)
 
@@ -391,13 +391,15 @@ ggplot(elbow_data, aes(x = k, y = WCSS)) +
            label = paste("Optimal k =", elbow_point), vjust = -1.5, color = "darkgreen")
 
 
+# K = 2 for most methods , 3 for none
+
+
 
 ################################################################################
 ####### STEP 1.4: EVALUATE CLUSTERS FOR K = 2:10
 ################################################################################
 
 # ------------ non-filtered ----------------------------------------------------
-
 # Evaluate clusters and store cluster memberships for k = 2 to 10
 cluster_results <- list()
 
@@ -410,7 +412,6 @@ for (k in 2:10) {
 
 
 # ------------ filtered --------------------------------------------------------
-
 # Evaluate clusters and store cluster memberships for k = 2 to 10
 cluster_results <- list()
 
@@ -420,6 +421,8 @@ for (k in 2:10) {
   print(table(cluster_results[[k]]))  # Frequency of elements in each cluster
 }
 
+# filtered seems better for 2 and unfiltered for 3
+
 
 
 ################################################################################
@@ -427,7 +430,6 @@ for (k in 2:10) {
 ################################################################################
 
 # ------------ non-filtered ----------------------------------------------------
-
 # Use the optimal number of clusters based on silhouette analysis
 optimal_clusters <- cutree(hc, optimal_k_silhouette)
 
@@ -438,7 +440,6 @@ print(table(optimal_clusters))  # Frequency of elements in each cluster
 
 
 # ------------ filtered --------------------------------------------------------
-
 # Use the optimal number of clusters based on silhouette analysis
 optimal_clusters <- cutree(hc_filtered, optimal_k_silhouette_filtered)
 
@@ -503,15 +504,14 @@ kmeans_analysis <- function(tfidf_matrix, k_range) {
     )
 }
 
+
+
 ################################################################################
 # find optimal k on k-means, both on filtered and unfiltered tfidf
 ################################################################################
 
 # Define range of k
 k_range <- 2:5
-
-# Example TF-IDF matrix (replace with your actual matrix)
-# tfidf_matrix <- YOUR_TFIDF_MATRIX
 
 # Run the function
 results <- kmeans_analysis(tfidf, k_range)
@@ -520,12 +520,11 @@ results <- kmeans_analysis(tfidf, k_range)
 cat("Optimal k (Silhouette):", results$optimal_k_silhouette, "\n")
 cat("Optimal k (Elbow Point):", results$elbow_point, "\n")
 
+unfiltered_results$optimal_k_silhouette <- results$optimal_k_silhouette
+unfiltered_results$elbow_point <- results$elbow_point
 
 # Define range of k
 k_range <- 2:5
-
-# Example TF-IDF matrix (replace with your actual matrix)
-# tfidf_matrix <- YOUR_TFIDF_MATRIX
 
 # Run the function
 results_filtered <- kmeans_analysis(tfidf_filtered, k_range)
