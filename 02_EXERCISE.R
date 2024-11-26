@@ -710,7 +710,7 @@ print(kmeans_summary_unfiltered_df)
 ###### K-MEANS CLUSTERING SUMMARIES (FILTERED)
 ################################################################################
 
-k <- 2 # 2  # Number of clusters for K-means
+k <- 3 # 2  # Number of clusters for K-means
 kfit_filtered <- kmeans(cdist, centers = k, nstart = 100)  # Run K-means clustering
 
 kmeans_summary_filtered <- lapply(1:k, function(cluster_num) {
@@ -752,11 +752,12 @@ print("K-means Clustering Summary (Filtered):")
 print(kmeans_summary_filtered_df)
 
 
+
 ################################################################################
 ###### K-MEANS CLUSTERING
 ################################################################################
 
-kfit <- kmeans(cdist, centers = 5, nstart = 100)
+kfit <- kmeans(cdist, centers = 3, nstart = 100) #centers = 5
 
 # Plot K-means clustering results
 clusplot(as.matrix(cdist), kfit$cluster, color = TRUE, shade = TRUE, labels = 2, lines = 0)
