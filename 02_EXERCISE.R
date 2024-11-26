@@ -632,6 +632,7 @@ if (example_cluster <= length(cluster_words)) {
 ###### HIERARCHICAL CLUSTERING (FILTERED)
 ################################################################################
 
+k <- 2
 hc_filtered <- hclust(cdist_filtered, "ward.D")
 clustering_filtered <- cutree(hc_filtered, k)
 
@@ -655,6 +656,101 @@ hc_filtered_summary <- data.frame(
 
 # Print filtered hierarchical clustering summary
 print(hc_filtered_summary)
+
+
+
+################################################################################
+###### K-MEANS CLUSTERING SUMMARIES (UNFILTERED)
+################################################################################
+
+k <- 3 # 2  # Number of clusters for K-means
+kfit <- kmeans(cdist, centers = k, nstart = 100)  # Run K-means clustering
+
+kmeans_summary_unfiltered <- lapply(1:k, function(cluster_num) {
+  # Get the indices of documents in this cluster
+  cluster_indices <- which(kfit$cluster == cluster_num)
+  
+  # Subset the DTM for this cluster
+  cluster_dtm <- dtm[cluster_indices, , drop = FALSE]
+  
+  # Calculate term frequencies for this cluster
+  if (length(dim(cluster_dtm)) > 1) {
+    term_freq <- slam::col_sums(cluster_dtm)
+  } else {
+    term_freq <- cluster_dtm
+  }
+  
+  # Identify the top 5 terms for this cluster
+  top_terms <- names(sort(term_freq, decreasing = TRUE)[1:5])
+  
+  # Calculate cluster size
+  cluster_size <- length(cluster_indices)
+  
+  # Return summary
+  list(cluster = cluster_num, size = cluster_size, top_terms = top_terms)
+})
+
+# Convert to a more readable data frame
+kmeans_summary_unfiltered_df <- do.call(rbind, lapply(kmeans_summary_unfiltered, function(cluster) {
+  data.frame(
+    cluster = cluster$cluster,
+    size = cluster$size,
+    top_terms = paste(cluster$top_terms, collapse = ", "),
+    stringsAsFactors = FALSE
+  )
+}))
+
+# Print the K-means clustering summary (Unfiltered)
+print("K-means Clustering Summary (Unfiltered):")
+print(kmeans_summary_unfiltered_df)
+
+
+
+################################################################################
+###### K-MEANS CLUSTERING SUMMARIES (FILTERED)
+################################################################################
+
+k <- 2 # 2  # Number of clusters for K-means
+kfit_filtered <- kmeans(cdist, centers = k, nstart = 100)  # Run K-means clustering
+
+kmeans_summary_filtered <- lapply(1:k, function(cluster_num) {
+  # Get the indices of documents in this cluster
+  cluster_indices <- which(kfit_filtered$cluster == cluster_num)
+  
+  # Subset the DTM for this cluster
+  cluster_dtm <- dtm[cluster_indices, , drop = FALSE]
+  
+  # Calculate term frequencies for this cluster
+  if (length(dim(cluster_dtm)) > 1) {
+    term_freq <- slam::col_sums(cluster_dtm)
+  } else {
+    term_freq <- cluster_dtm
+  }
+  
+  # Identify the top 5 terms for this cluster
+  top_terms <- names(sort(term_freq, decreasing = TRUE)[1:5])
+  
+  # Calculate cluster size
+  cluster_size <- length(cluster_indices)
+  
+  # Return summary
+  list(cluster = cluster_num, size = cluster_size, top_terms = top_terms)
+})
+
+# Convert to a more readable data frame
+kmeans_summary_filtered_df <- do.call(rbind, lapply(kmeans_summary_filtered, function(cluster) {
+  data.frame(
+    cluster = cluster$cluster,
+    size = cluster$size,
+    top_terms = paste(cluster$top_terms, collapse = ", "),
+    stringsAsFactors = FALSE
+  )
+}))
+
+# Print the K-means clustering summary (Filtered)
+print("K-means Clustering Summary (Filtered):")
+print(kmeans_summary_filtered_df)
+
 
 ################################################################################
 ###### K-MEANS CLUSTERING
